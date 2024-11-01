@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data Viewer</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head> 
+<!--Style for UI-->
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f9;
+    }
+    nav {
+        background-color: #34495e;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: white;
+    }
+    nav select, nav button {
+        font-size: 16px;
+        padding: 10px;
+        margin-right: 10px;
+        border: none;
+        border-radius: 5px;
+        background-color: #2ecc71;
+        color: white;
+        cursor: pointer;
+    }
+    nav button:hover, nav select:hover {
+        background-color: #27ae60;
+    }
+    nav select {
+        background-color: #3498db;
+        color: white;
+    }
+    nav select:hover {
+        background-color: #2980b9;
+    }
+    div {
+        padding: 20px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        background-color: white;
+    }
+    table thead {
+        background-color: #3498db;
+        color: white;
+    }
+    table th, table td {
+        padding: 12px;
+        border: 1px solid #ddd;
+        text-align: left;
+    }
+    table tbody tr:hover {
+        background-color: #f1f1f1;
+        cursor: pointer;
+    }
+    #graph {
+        margin-top: 30px;
+    }
+    #popup {
+        display: none;
+        position: absolute;
+        padding: 10px;
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
+    #popup label, #popup button {
+        display: block;
+        margin-top: 5px;
+    }
+    #labelSelectionButton {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #labelSelectionButton:hover {
+            background-color: #2980b9;
+        }
+</style>
+
+<body>
+    <nav> <!-- Navigation bar with Subsystem drop-down -->
+        <select id="subsystemSelect" onchange="loadSubsystemTags()">
+            <option value="">Select Subsystem</option>
+        </select>
+        <button onclick="openFile()">Open File</button>
+    </nav>
+
+    <div><!-- Sensor tag selection -->
+        <label for="sensorTag">Sensor Tag:</label>
+        <select id="sensorTag" onchange="loadData()">
+            <option value="">Select Tag</option>
+        </select>
+    </div>
+
+    <table id="statsTable"> <!-- Table for stats -->
+        <thead>
+            <tr>
+                <th>Tag Name</th>
+                <th>Min</th>
+                <th>Max</th>
+                <th>Std Dev</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <button id="labelSelectionButton" onclick="enableLabelSelection()">Enable Label Selection</button>
+    <div id="graph"></div>
+
+    <!-- Popup for Labeling -->
+    <div id="popup" style="display: none; position: absolute; background-color: white; border: 1px solid black; padding: 10px;">
+        <label for="labelInput">Enter Label:</label>
+        <input type="text" id="labelInput">
+        <button onclick="applyLabel()">Apply Label</button>
+    </div>
+
+    <script>
+        let dataSegments = [];   // Stores labeled segments
+        let selectedRange = {};  // Stores selected range for labeling
+        let labelColors = {};    // Stores colors for each unique label
+        let currentData = [];    // To hold the time series data
+
+        // Load subsystems and tags on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('subsystems.csv')
+                .then(response => response.text())
+                .then(data => {
+                    const subsystems = parseSubsystemsCSV(data);
+                    populateSubsystemDropdown(subsystems);
+                });
+        });
+
+        function parseSubsystemsCSV(data) {
+            const lines = data.split('\n');
+            const result = [];
+
+            lines.forEach((line, index) => {
+                if (index === 0) return; // Skip header row
+                const [subsystem, tagName] = line.split(',');
+                if (subsystem && tagName) {
+                    result.push({ subsystem: subsystem.trim(), tagName: tagName.trim() });
+                }
+            });
+
+            return result;
+        }
+
+        function populateSubsystemDropdown(subsystems) {
+            const subsystemSelect = document.getElementById('subsystemSelect');
+            const uniqueSubsystems = [...new Set(subsystems.map(item => item.subsystem))];
+            
+            uniqueSubsystems.forEach(subsystem => {
+                const option = document.createElement('option');
+                option.value = subsystem;
+                option.textContent = subsystem;
+                subsystemSelect.appendChild(option);
+            });
+        }
+
+        function loadSubsystemTags() {
+            const selectedSubsystem = document.getElementById('subsystemSelect').value;
+            if (!selectedSubsystem) return;
+
+            fetch('subsystems.csv')
+                .then(response => response.text())
+                .then(data => {
+                    const subsystems = parseSubsystemsCSV(data);
+                    const filteredTags = subsystems
+                        .filter(item => item.subsystem === selectedSubsystem)
+                        .map(item => item.tagName);
+                    
+                    populateTagsDropdown(filteredTags);
+                });
+        }
+
+        function populateTagsDropdown(tags) {
+            const sensorTagSelect = document.getElementById('sensorTag');
+            sensorTagSelect.innerHTML = '<option value="">Select Tag</option>'; // Clear previous options
+            
+            tags.forEach(tagName => {
+                const option = document.createElement('option');
+                option.value = tagName;
+                option.textContent = tagName;
+                sensorTagSelect.appendChild(option);
+            });
+        }
+
+        function openFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = event => {
+                        const content = event.target.result;
+                        const data = parseAndSortCSV(content);
+                        calculateAndDisplayStats(data, file.name);
+                        plotGraph(data);
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        function parseAndSortCSV(data) {
+            const lines = data.split('\n');
+            const result = [];
+
+            lines.forEach((line, index) => {
+                if (index === 0) return; // Skip header row
+                const [timeStamp, value] = line.split(',');
+                if (timeStamp && value) {
+                    result.push({ timeStamp: new Date(timeStamp.trim()), value: parseFloat(value.trim()) });
+                }
+            });
+
+            result.sort((a, b) => a.timeStamp - b.timeStamp); // Sort by timestamp
+            return result;
+        }
+
+        function calculateAndDisplayStats(data, tagName) {
+            const values = data.map(item => item.value);
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const stdDev = calculateStdDev(values);
+
+            const tableBody = document.querySelector('#statsTable tbody');
+            tableBody.innerHTML = ''; // Clear previous stats
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${tagName}</td>
+                <td>${min.toFixed(2)}</td>
+                <td>${max.toFixed(2)}</td>
+                <td>${stdDev.toFixed(2)}</td>
+            `;
+            tableBody.appendChild(row);
+        }
+
+        function calculateStdDev(values) {
+            const mean = values.reduce((a, b) => a + b) / values.length;
+            return Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / values.length);
+        }
+
+        function loadData() {
+            const selectedTag = document.getElementById('sensorTag').value;
+            if (!selectedTag) return;
+
+            fetch(`${selectedTag}.csv`)
+                .then(response => response.text())
+                .then(data => {
+                    const parsedData = parseAndSortCSV(data);
+                    calculateAndDisplayStats(parsedData, selectedTag);
+                    plotGraph(parsedData);
+                });
+        }
+
+        function plotGraph(data) {
+            currentData = data; // Store data globally to reuse
+            const trace = {
+                x: data.map(item => item.timeStamp),
+                y: data.map(item => item.value),
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: 'blue' },
+                name: 'Default'
+            };
+
+            const layout = {
+                title: 'Time Series Data',
+                xaxis: { title: 'Timestamp' },
+                yaxis: { title: 'Value' },
+                dragmode: 'pan' // Set default mode to pan
+            };
+
+            Plotly.newPlot('graph', [trace], layout);
+
+            document.getElementById('graph').on('plotly_selected', event => handleSelection(event));
+        }
+
+        function enableLabelSelection() {
+            Plotly.relayout('graph', { dragmode: 'select' });
+        }
+
+        function handleSelection(event) {
+            if (event && event.range) {
+                selectedRange = {
+                    start: new Date(event.range.x[0]),
+                    end: new Date(event.range.x[1])
+                };
+
+                // Show the label input popup at the selection position
+                const popup = document.getElementById('popup');
+                popup.style.display = 'block';
+                popup.style.left = `${event.event.pageX}px`;
+                popup.style.top = `${event.event.pageY}px`;
+            }
+        }
+
+        function applyLabel() {
+            const label = document.getElementById('labelInput').value;
+
+            if (!label) return; // Exit if no label is entered
+
+            // Assign a new color to each unique label
+            if (!labelColors[label]) {
+                labelColors[label] = `hsl(${Object.keys(labelColors).length * 60 % 360}, 70%, 50%)`;
+            }
+
+            dataSegments.push({
+                ...selectedRange,
+                label,
+                color: labelColors[label]
+            });
+
+            // Hide popup and clear input
+            document.getElementById('popup').style.display = 'none';
+            document.getElementById('labelInput').value = '';
+
+            updatePlot(); // Update the plot with the labeled segments
+        }
+
+        function updatePlot() {
+            // Base trace with default color
+            const baseTrace = {
+                x: currentData.map(item => item.timeStamp),
+                y: currentData.map(item => item.value),
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: 'blue' },
+                name: 'Default'
+            };
+
+            // Create traces for each labeled segment
+            const segmentTraces = dataSegments.map(segment => {
+                const segmentData = currentData.filter(item =>
+                    item.timeStamp >= segment.start && item.timeStamp <= segment.end
+                );
+
+                return {
+                    x: segmentData.map(item => item.timeStamp),
+                    y: segmentData.map(item => item.value),
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: segment.color, width: 4 },
+                    name: segment.label
+                };
+            });
+
+            Plotly.react('graph', [baseTrace, ...segmentTraces], {
+                title: 'Time Series Data with Labels',
+                xaxis: { title: 'Timestamp' },
+                yaxis: { title: 'Value' }
+            });
+        }
+    </script>
+</body>
+</html>
