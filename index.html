@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sensor Data Viewer</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-</head> 
-<!--Style for UI-->
+</head>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -39,9 +38,6 @@
         background-color: #3498db;
         color: white;
     }
-    nav select:hover {
-        background-color: #2980b9;
-    }
     div {
         padding: 20px;
     }
@@ -61,10 +57,6 @@
         border: 1px solid #ddd;
         text-align: left;
     }
-    table tbody tr:hover {
-        background-color: #f1f1f1;
-        cursor: pointer;
-    }
     #graph {
         margin-top: 30px;
     }
@@ -83,38 +75,37 @@
         margin-top: 5px;
     }
     #labelSelectionButton {
-            display: inline-block;
-            margin: 10px;
-            padding: 10px 20px;
-            background-color: #3498db;
-            color: white;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        #labelSelectionButton:hover {
-            background-color: #2980b9;
-        }
+        display: inline-block;
+        margin: 10px;
+        padding: 10px 20px;
+        background-color: #3498db;
+        color: white;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    #labelSelectionButton:hover {
+        background-color: #2980b9;
+    }
 </style>
 
 <body>
-    <nav> <!-- Navigation bar with Subsystem drop-down -->
+    <nav>
         <select id="subsystemSelect" onchange="loadSubsystemTags()">
             <option value="">Select Subsystem</option>
         </select>
         <button onclick="openFile()">Open File</button>
     </nav>
 
-    <div><!-- Sensor tag selection -->
+    <div>
         <label for="sensorTag">Sensor Tag:</label>
         <select id="sensorTag" onchange="loadData()">
             <option value="">Select Tag</option>
         </select>
     </div>
 
-    <table id="statsTable"> <!-- Table for stats -->
+    <table id="statsTable">
         <thead>
             <tr>
                 <th>Tag Name</th>
@@ -125,11 +116,11 @@
         </thead>
         <tbody></tbody>
     </table>
-    <button id="labelSelectionButton" onclick="enableLabelSelection()">Enable Label Selection</button>
-    <div id="graph"></div>
 
-    <!-- Popup for Labeling -->
-    <div id="popup" style="display: none; position: absolute; background-color: white; border: 1px solid black; padding: 10px;">
+    <div id="graph"></div>
+    <button id="labelSelectionButton" onclick="enableLabelSelection()">Label Selection</button>
+    <button onclick="saveLabeledData()">Save Labeled Data to CSV</button>
+    <div id="popup">
         <label for="labelInput">Enter Label:</label>
         <input type="text" id="labelInput">
         <button onclick="applyLabel()">Apply Label</button>
@@ -139,7 +130,8 @@
         let dataSegments = [];   // Stores labeled segments
         let selectedRange = {};  // Stores selected range for labeling
         let labelColors = {};    // Stores colors for each unique label
-        let currentData = [];    // To hold the time series data
+        let currentData = [];    // Holds time series data for plotting and saving
+        let fileData = [];       // Holds all data to duplicate and add labels to
 
         // Load subsystems and tags on page load
         document.addEventListener('DOMContentLoaded', () => {
@@ -216,9 +208,9 @@
                     const reader = new FileReader();
                     reader.onload = event => {
                         const content = event.target.result;
-                        const data = parseAndSortCSV(content);
-                        calculateAndDisplayStats(data, file.name);
-                        plotGraph(data);
+                        fileData = parseAndSortCSV(content); // Store the full data for saving
+                        calculateAndDisplayStats(fileData, file.name);
+                        plotGraph(fileData);
                     };
                     reader.readAsText(file);
                 }
@@ -234,7 +226,7 @@
                 if (index === 0) return; // Skip header row
                 const [timeStamp, value] = line.split(',');
                 if (timeStamp && value) {
-                    result.push({ timeStamp: new Date(timeStamp.trim()), value: parseFloat(value.trim()) });
+                    result.push({ timeStamp: new Date(timeStamp.trim()), value: parseFloat(value.trim()), label: 'N' });
                 }
             });
 
@@ -242,68 +234,33 @@
             return result;
         }
 
-        function calculateAndDisplayStats(data, tagName) {
-            const values = data.map(item => item.value);
-            const min = Math.min(...values);
-            const max = Math.max(...values);
-            const stdDev = calculateStdDev(values);
-
-            const tableBody = document.querySelector('#statsTable tbody');
-            tableBody.innerHTML = ''; // Clear previous stats
-
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${tagName}</td>
-                <td>${min.toFixed(2)}</td>
-                <td>${max.toFixed(2)}</td>
-                <td>${stdDev.toFixed(2)}</td>
-            `;
-            tableBody.appendChild(row);
-        }
-
-        function calculateStdDev(values) {
-            const mean = values.reduce((a, b) => a + b) / values.length;
-            return Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / values.length);
-        }
-
-        function loadData() {
-            const selectedTag = document.getElementById('sensorTag').value;
-            if (!selectedTag) return;
-
-            fetch(`${selectedTag}.csv`)
-                .then(response => response.text())
-                .then(data => {
-                    const parsedData = parseAndSortCSV(data);
-                    calculateAndDisplayStats(parsedData, selectedTag);
-                    plotGraph(parsedData);
-                });
-        }
-
-        function plotGraph(data) {
-            currentData = data; // Store data globally to reuse
-            const trace = {
-                x: data.map(item => item.timeStamp),
-                y: data.map(item => item.value),
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: 'blue' },
-                name: 'Default'
-            };
-
-            const layout = {
-                title: 'Time Series Data',
-                xaxis: { title: 'Timestamp' },
-                yaxis: { title: 'Value' },
-                dragmode: 'pan' // Set default mode to pan
-            };
-
-            Plotly.newPlot('graph', [trace], layout);
-
-            document.getElementById('graph').on('plotly_selected', event => handleSelection(event));
-        }
-
         function enableLabelSelection() {
             Plotly.relayout('graph', { dragmode: 'select' });
+        }
+
+        function applyLabel() {
+            const label = document.getElementById('labelInput').value || 'N'; // Default to 'N' if empty
+
+            if (!labelColors[label]) {
+                labelColors[label] = `hsl(${Object.keys(labelColors).length * 60 % 360}, 70%, 50%)`;
+            }
+
+            dataSegments.push({
+                start: selectedRange.start,
+                end: selectedRange.end,
+                label: label,
+                color: labelColors[label]
+            });
+
+            fileData.forEach(entry => {
+                if (entry.timeStamp >= selectedRange.start && entry.timeStamp <= selectedRange.end) {
+                    entry.label = label;
+                }
+            });
+
+            document.getElementById('popup').style.display = 'none';
+            document.getElementById('labelInput').value = '';
+            updatePlot();
         }
 
         function handleSelection(event) {
@@ -313,7 +270,6 @@
                     end: new Date(event.range.x[1])
                 };
 
-                // Show the label input popup at the selection position
                 const popup = document.getElementById('popup');
                 popup.style.display = 'block';
                 popup.style.left = `${event.event.pageX}px`;
@@ -321,43 +277,18 @@
             }
         }
 
-        function applyLabel() {
-            const label = document.getElementById('labelInput').value;
-
-            if (!label) return; // Exit if no label is entered
-
-            // Assign a new color to each unique label
-            if (!labelColors[label]) {
-                labelColors[label] = `hsl(${Object.keys(labelColors).length * 60 % 360}, 70%, 50%)`;
-            }
-
-            dataSegments.push({
-                ...selectedRange,
-                label,
-                color: labelColors[label]
-            });
-
-            // Hide popup and clear input
-            document.getElementById('popup').style.display = 'none';
-            document.getElementById('labelInput').value = '';
-
-            updatePlot(); // Update the plot with the labeled segments
-        }
-
         function updatePlot() {
-            // Base trace with default color
             const baseTrace = {
-                x: currentData.map(item => item.timeStamp),
-                y: currentData.map(item => item.value),
+                x: fileData.map(item => item.timeStamp),
+                y: fileData.map(item => item.value),
                 type: 'scatter',
                 mode: 'lines',
                 line: { color: 'blue' },
                 name: 'Default'
             };
 
-            // Create traces for each labeled segment
             const segmentTraces = dataSegments.map(segment => {
-                const segmentData = currentData.filter(item =>
+                const segmentData = fileData.filter(item =>
                     item.timeStamp >= segment.start && item.timeStamp <= segment.end
                 );
 
@@ -376,6 +307,68 @@
                 xaxis: { title: 'Timestamp' },
                 yaxis: { title: 'Value' }
             });
+        }
+
+        function saveLabeledData() {
+            let csvContent = "data:text/csv;charset=utf-8,Timestamp,Value,Label\n";
+            fileData.forEach(row => {
+                csvContent += `${row.timeStamp.toISOString()},${row.value},${row.label}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "labeled_data.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function plotGraph(data) {
+            currentData = data;
+            const trace = {
+                x: data.map(item => item.timeStamp),
+                y: data.map(item => item.value),
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: 'blue' },
+                name: 'Default'
+            };
+
+            const layout = {
+                title: 'Time Series Data',
+                xaxis: { title: 'Timestamp' },
+                yaxis: { title: 'Value' },
+                dragmode: 'pan'
+            };
+
+            Plotly.newPlot('graph', [trace], layout);
+
+            document.getElementById('graph').on('plotly_selected', event => handleSelection(event));
+        }
+
+        function calculateAndDisplayStats(data, tagName) {
+            const values = data.map(item => item.value);
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const stdDev = calculateStdDev(values);
+
+            const tableBody = document.querySelector('#statsTable tbody');
+            tableBody.innerHTML = ''; 
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${tagName}</td>
+                <td>${min.toFixed(2)}</td>
+                <td>${max.toFixed(2)}</td>
+                <td>${stdDev.toFixed(2)}</td>
+            `;
+            tableBody.appendChild(row);
+        }
+
+        function calculateStdDev(values) {
+            const mean = values.reduce((a, b) => a + b) / values.length;
+            return Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / values.length);
         }
     </script>
 </body>
