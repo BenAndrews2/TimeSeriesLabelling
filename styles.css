@@ -1,0 +1,232 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f5f5;
+}
+/*Header*/
+.header {
+    padding: 40px;
+    text-align: left;
+    background: linear-gradient(45deg, #34397b, #0c69b0);
+    color: white;
+    font-size: 30px;
+    font-family: Arial, sans-serif;
+}
+/*Nav bar*/
+nav {
+    background-color: #f5f5f5;
+    padding: 40px;
+    display: flex;
+    justify-content: flex-start;
+    list-style-type: none;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    gap: 10px;
+}
+/*Style for nav buttons*/
+nav button {
+    font-size: 20px;
+    padding: 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: #3190d9;
+    color: white;
+    cursor: pointer;
+}
+nav button:hover{
+    background-color: #0c69b0;
+}
+/*Open File button*/
+.nav-buttons{
+    width: 150px;
+}
+/*Style for dropdowns*/
+nav select {
+    background-color: #ffffff;
+    color: #3498db;
+    font-size: 20px;
+    padding: 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 500px;
+}
+nav select:hover {
+    background-color: #f5f5f5;
+}
+.loadPlot-button{
+    margin-right: auto;
+}
+div {
+    padding: 20px;
+}
+/*Styling for the statistics table*/
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0px 4px 8px #0000001a;
+    background-color: white;
+    font-size: 20px;
+}
+table thead {
+    background-color: #3190d9;
+    color: white;
+}
+table th, table td {
+    padding: 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+table tbody tr:hover {
+    background-color: #f1f1f1;
+    cursor: pointer;
+}
+/*Styling for the label selection*/
+.modal{
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+}
+.modal-content{
+    background-color: #fff;
+    padding: 40px;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 12px;
+    position: relative;
+    font-size: 25px;
+    font-family: Arial, sans-serif;
+}
+.modal-content h2{
+    margin-top: 0;
+    font-size: 24px;
+}
+.modal-buttons {
+    margin-top: 30px;
+    display: flex;
+    justify-content: flex-end;
+}
+.modal-buttons button {
+    margin-left: 15px;
+    padding: 12px 20px;
+    font-size: 16px;
+}
+.close{
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+/*Delete Label Styling*/
+#labelTable{
+    width: 100%;
+    border-collapse: collapse;
+}
+#labelTable th, #labelTable td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+}
+#labelTable td button {
+    padding: 5px 10px;
+    background-color: #f44336;
+    color:white;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+}
+#labelTable td button:hover {
+    background-color: #d32f2f;
+}
+/*Enter Label Box in Label Selection Popup*/
+#labelInput {
+    width: 450px;
+    height: 40px;
+    font-size: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+/*Plot graph (most of styling is in plotly script)*/
+#graph {
+    margin-top: 30px;
+    width: 100% !important;
+    max-width: none !important;
+    height: 600px;
+}
+
+/*Styling for the 3 buttons below*/
+.button-container{
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/*Label Selection Button*/
+#labelSelectionButton{
+    display: inline-block;
+    margin: 10px;
+    padding: 20px;
+    background-color: #3190d9;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    font-size: 20px;
+    width: 200px;
+}
+#labelSelectionButton:hover{
+    background-color: #0c69b0;
+}
+/*Delete Button*/
+#deleteLabelButton{
+    display: inline-block;
+    margin: 100px;
+    margin-right: auto;
+    padding: 20px;
+    background-color: #d82424;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    font-size: 20px;
+    width: 200px;
+}
+#deleteLabelButton:hover{
+    background-color: #ad1723; 
+}
+/*Download button*/
+#saveLabelledData{
+    display: inline-block;
+    margin: 10px;
+    padding: 20px;
+    background-color: #3190d9;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    font-size: 20px;
+    width: 200px;
+    margin-right: 70px;
+}
+#saveLabelledData:hover{
+    background-color: #0c69b0;
+}
+/*Download Button image*/
+#saveLabelledData img{
+    width: 40px; 
+    height: 40px;
+}
